@@ -1,0 +1,13 @@
+#+TITLE: mode-fontify
+Fontify buffer text by major-mode.
+
+[[file:screenshot.gif]]
+
+* Installation
+** ~quelpa-use-package~
+#+BEGIN_SRC emacs-lisp
+  (use-package mode-fontify
+    :quelpa (mode-fontify :fetcher github :repo "bohonghuang/mode-fontify")
+    :defer t
+    :commands (mode-fontify-region mode-fontify-face-region mode-fontify-face-region-at-point))
+#+END_SRC
