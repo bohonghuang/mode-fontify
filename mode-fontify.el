@@ -13,7 +13,6 @@
   :group 'mode-fontify
   :type '(choice
           (const :tag "Font-lock" font-lock-default-fontify-region)
-          (const :tag "Tree-sitter" mode-fontify-try-tree-sitter-hl)
           (function :tag "Custom")))
 
 (defcustom mode-fontify-inhibit-hook-p nil
@@ -25,18 +24,6 @@
   "Non-nil means `indent-region' will be called before fontifying text."
   :group 'mode-fontify
   :type 'boolean)
-
-(defun mode-fontify-try-tree-sitter-hl (beg end &optional loudly)
-  "Load `tree-sitter-hl' and try using it to highlight the region (BEG . END).
-This function will fall back to `font-lock-fontify-region'
-if `tree-sitter-hl' fails to highlight the region.
-If LOUDLY is non-nil, print status messages while fontifying."
-  (require 'tree-sitter-hl)
-  (if (cl-member major-mode (mapcar #'car tree-sitter-major-mode-language-alist))
-      (progn
-        (tree-sitter-hl-mode +1)
-        (tree-sitter-hl--highlight-region-with-fallback #'font-lock-fontify-region beg end loudly))
-    (font-lock-fontify-region beg end loudly)))
 
 (defun mode-fontify-text (mode text)
   "Use MODE to fontify TEXT with `mode-fontify-function'."
@@ -67,9 +54,10 @@ It can avoid the face being changed by the syntax of the current buffer."
   "Select a `major-mode' in minibuffer."
   (intern (completing-read "Select mode: "
                            (cl-remove-duplicates
-                            (cl-remove-if-not
-                             #'symbolp
-                             (mapcar #'cdr auto-mode-alist)))
+                            (let ((modes (cl-remove-if-not #'symbolp (mapcar #'cdr auto-mode-alist))))
+                              (if (and (<= 29 emacs-major-version) (treesit-available-p))
+                                  (nconc modes (mapcar (lambda (mode) (intern (replace-regexp-in-string "-mode$" "-ts-mode" (symbol-name mode)))) modes))
+                                modes)))
                            nil nil nil nil nil)))
 
 (defun mode-fontify-select-faces ()
@@ -103,8 +91,7 @@ The text from the region is grouped and highlighted if its face exists in FACES.
                           unless (and (member (face-at-point) faces)
                                       (or (> p beg) (not (looking-at-p "[[:blank:]]"))))
                           if (= beg p) do (setq beg (1+ p))
-                          else collect (cons beg p) into regions
-                          and do (setq beg (1+ p))
+                          else collect (cons beg p) into regions and do (setq beg (1+ p))
                           finally
                           (cl-decf p)
                           (when (< beg p) (push (cons beg p) regions))
